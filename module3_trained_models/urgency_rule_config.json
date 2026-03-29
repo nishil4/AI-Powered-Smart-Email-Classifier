@@ -1,0 +1,66 @@
+{
+  "urgency_keywords": {
+    "high": [
+      "urgent",
+      "asap",
+      "immediately",
+      "critical",
+      "emergency",
+      "production down",
+      "outage",
+      "security alert",
+      "unauthorized",
+      "failed login",
+      "account locked",
+      "account suspended",
+      "verification code",
+      "otp",
+      "password reset",
+      "breach",
+      "compromised",
+      "cannot login"
+    ],
+    "medium": [
+      "request",
+      "need",
+      "please",
+      "kindly",
+      "soon",
+      "follow up",
+      "waiting",
+      "delay",
+      "update",
+      "question",
+      "clarification",
+      "review",
+      "confirm",
+      "verify",
+      "action needed",
+      "reminder",
+      "required",
+      "pending",
+      "deadline",
+      "approval"
+    ],
+    "low": [
+      "fyi",
+      "for your reference",
+      "no action needed",
+      "newsletter",
+      "digest",
+      "general update",
+      "announcement"
+    ]
+  },
+  "priority_order": {
+    "low": 0,
+    "medium": 1,
+    "high": 2
+  },
+  "selected_strategy": "Hybrid (Fairness-tuned Fusion: ML + Content Rules)",
+  "hybrid_alpha": 0.78,
+  "hybrid_conf_threshold": 0.46,
+  "hybrid_strong_signal_threshold": 3,
+  "spam_default_low": false,
+  "test_used_for_training": false
+}

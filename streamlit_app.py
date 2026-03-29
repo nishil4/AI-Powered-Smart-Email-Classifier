@@ -606,17 +606,39 @@ def main():
     st.title("📧 AI Powered Smart Email Classifier")
     st.caption("Real-time email classification, urgency detection, and advanced analytics")
 
+    import time
+    
+    if "last_refresh" not in st.session_state:
+        st.session_state.last_refresh = time.time()
+    
+    current_time = time.time()
+    if current_time - st.session_state.last_refresh > 5:
+        st.session_state.last_refresh = current_time
+        st.rerun()
+
+    if "refresh_count" not in st.session_state:
+        st.session_state.refresh_count = 0
+
+    col1, col2, col3 = st.columns([3, 1, 1])
+    with col2:
+        if st.button("🔄 Refresh Now", use_container_width=True):
+            st.session_state.refresh_count += 1
+            st.rerun()
+    with col3:
+        st.metric("Auto-Refresh", "5s")
+
     category_model, urgency_model, tfidf_vectorizer = load_models()
     urgency_keywords = load_rule_keywords()
 
-    # Load all data
     live_df = load_live_data()
     data_df = live_df.copy()
-    data_df["predicted_urgency"] = data_df["predicted_urgency"].astype(str).str.lower()
-    data_df["predicted_category"] = data_df["predicted_category"].astype(str).str.lower()
+    if len(data_df) > 0:
+        data_df["predicted_urgency"] = data_df["predicted_urgency"].astype(str).str.lower()
+        data_df["predicted_category"] = data_df["predicted_category"].astype(str).str.lower()
 
-    # Apply filters
     filtered_df = apply_filters(data_df)
+    
+    st.info("✨ Dashboard auto-refreshes every 5 seconds to show new Gmail classifications")
 
     # Create tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([

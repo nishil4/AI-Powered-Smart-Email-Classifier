@@ -2,9 +2,10 @@ services:
   - type: web
     name: ai-email-api
     runtime: python
-    pythonVersion: 3.11
-    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    pythonVersion: 3.11.7
+    buildCommand: "pip install --upgrade pip setuptools wheel && pip install -r requirements.txt"
     startCommand: "uvicorn integration_layer_api:app --host 0.0.0.0 --port 8000"
+    memoryMB: 512
     envVars:
       - key: PYTHON_VERSION
         value: 3.11

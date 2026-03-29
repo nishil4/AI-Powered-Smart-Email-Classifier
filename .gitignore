@@ -14,11 +14,10 @@ __pycache__/
 Thumbs.db
 .vscode/
 
-# Optional binary model artifacts
-module2_trained_models/*.pkl
-module3_trained_models/*.pkl
-module2_trained_models/*.joblib
-module3_trained_models/*.joblib
+# Required model artifacts - MUST be deployed to production
+!module2_trained_models/best_email_classifier.pkl
+!module3_trained_models/best_urgency_classifier.pkl
+!module3_trained_models/tfidf_vectorizer.pkl
 
 # Keep lightweight outputs tracked
 !module2_trained_models/*.json

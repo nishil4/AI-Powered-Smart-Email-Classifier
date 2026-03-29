@@ -619,6 +619,17 @@ def main():
     category_model, urgency_model, tfidf_vectorizer = load_models()
     urgency_keywords = load_rule_keywords()
 
+    # Auto-refresh mechanism using Streamlit polling
+    if "last_check" not in st.session_state:
+        st.session_state.last_check = 0
+    
+    # Check for new data every 3 seconds
+    import time
+    current_time = time.time()
+    if current_time - st.session_state.last_check > 3:
+        st.session_state.last_check = current_time
+        st.rerun()
+    
     live_df = load_live_data()
     data_df = live_df.copy()
     
@@ -632,14 +643,6 @@ def main():
         st.success(f"✨ Loaded {len(filtered_df)} classifications")
     else:
         st.info("⏳ Awaiting Gmail classifications from Apps Script...")
-    
-    st.markdown("""
-    <script>
-    setTimeout(function() {
-        location.reload();
-    }, 5000);
-    </script>
-    """, unsafe_allow_html=True)
 
     # Create tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([

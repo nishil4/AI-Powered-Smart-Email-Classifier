@@ -360,9 +360,12 @@ def load_live_data():
     ensure_store()
     try:
         df = pd.read_csv(STORE_PATH)
-    except Exception:
-        df = pd.DataFrame(columns=["timestamp", "source", "subject", "email_text", "predicted_category", "predicted_urgency", "technical_category"])
-    return df
+        if len(df) > 0:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame(columns=["timestamp", "source", "subject", "email_text", "predicted_category", "predicted_urgency", "technical_category"])
 
 
 def append_prediction(record: dict):
@@ -606,39 +609,37 @@ def main():
     st.title("📧 AI Powered Smart Email Classifier")
     st.caption("Real-time email classification, urgency detection, and advanced analytics")
 
-    import time
-    
-    if "last_refresh" not in st.session_state:
-        st.session_state.last_refresh = time.time()
-    
-    current_time = time.time()
-    if current_time - st.session_state.last_refresh > 5:
-        st.session_state.last_refresh = current_time
-        st.rerun()
-
-    if "refresh_count" not in st.session_state:
-        st.session_state.refresh_count = 0
-
     col1, col2, col3 = st.columns([3, 1, 1])
     with col2:
         if st.button("🔄 Refresh Now", use_container_width=True):
-            st.session_state.refresh_count += 1
             st.rerun()
     with col3:
-        st.metric("Auto-Refresh", "5s")
+        st.metric("Status", "Live")
 
     category_model, urgency_model, tfidf_vectorizer = load_models()
     urgency_keywords = load_rule_keywords()
 
     live_df = load_live_data()
     data_df = live_df.copy()
+    
     if len(data_df) > 0:
         data_df["predicted_urgency"] = data_df["predicted_urgency"].astype(str).str.lower()
         data_df["predicted_category"] = data_df["predicted_category"].astype(str).str.lower()
 
     filtered_df = apply_filters(data_df)
     
-    st.info("✨ Dashboard auto-refreshes every 5 seconds to show new Gmail classifications")
+    if len(filtered_df) > 0:
+        st.success(f"✨ Loaded {len(filtered_df)} classifications")
+    else:
+        st.info("⏳ Awaiting Gmail classifications from Apps Script...")
+    
+    st.markdown("""
+    <script>
+    setTimeout(function() {
+        location.reload();
+    }, 5000);
+    </script>
+    """, unsafe_allow_html=True)
 
     # Create tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([

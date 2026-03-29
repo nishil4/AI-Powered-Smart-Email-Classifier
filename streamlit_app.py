@@ -63,6 +63,9 @@ RULE_SIGNAL_COLS = [
 LABEL_TO_IDX = {"low": 0, "medium": 1, "high": 2}
 IDX_TO_LABEL = {0: "low", 1: "medium", 2: "high"}
 
+# API Configuration
+API_URL = "https://ai-powered-smart-email-classifier-aek7.onrender.com"
+
 ALL_CATEGORIES = ["forum", "promotions", "social_media", "spam", "updates", "verify_code"]
 ALL_URGENCIES = ["high", "medium", "low"]
 

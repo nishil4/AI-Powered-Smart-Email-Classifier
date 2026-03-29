@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 import joblib
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 from sklearn.exceptions import InconsistentVersionWarning
 
@@ -312,6 +312,23 @@ def append_store(record: dict):
     df.to_csv(STORE_PATH, index=False)
 
 
+def read_store_df() -> pd.DataFrame:
+    ensure_store()
+    try:
+        return pd.read_csv(STORE_PATH)
+    except Exception:
+        cols = [
+            "timestamp",
+            "source",
+            "subject",
+            "email_text",
+            "predicted_category",
+            "predicted_urgency",
+            "technical_category",
+        ]
+        return pd.DataFrame(columns=cols)
+
+
 def route_to_systems(payload: dict, target_systems: List[str], callback_url: Optional[str]):
     routed = []
 
@@ -349,6 +366,27 @@ def health():
         "category_model_loaded": category_model is not None,
         "urgency_model_loaded": urgency_model is not None,
         "tfidf_loaded": tfidf_vectorizer is not None,
+    }
+
+
+@app.get("/predictions")
+def get_predictions(
+    limit: int = Query(default=500, ge=1, le=5000),
+    offset: int = Query(default=0, ge=0),
+):
+    df = read_store_df()
+    if df.empty:
+        return {"count": 0, "items": []}
+
+    if "timestamp" in df.columns:
+        df = df.assign(_ts=pd.to_datetime(df["timestamp"], errors="coerce")).sort_values("_ts", ascending=False).drop(columns=["_ts"])
+
+    page_df = df.iloc[offset: offset + limit].copy()
+    page_df = page_df.where(pd.notnull(page_df), None)
+
+    return {
+        "count": int(len(df)),
+        "items": page_df.to_dict(orient="records"),
     }
 
 

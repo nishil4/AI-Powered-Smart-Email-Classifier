@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import requests
 import streamlit as st
 from sklearn.exceptions import InconsistentVersionWarning
 
@@ -358,6 +359,22 @@ def ensure_store():
 
 def load_live_data():
     ensure_store()
+
+    # Primary source: integration API (Render), where Gmail ingestion writes records.
+    try:
+        response = requests.get(f"{API_URL}/predictions", params={"limit": 5000}, timeout=15)
+        response.raise_for_status()
+        payload = response.json()
+        items = payload.get("items", [])
+        if items:
+            df = pd.DataFrame(items)
+            if "timestamp" in df.columns:
+                df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+            return df
+    except Exception:
+        pass
+
+    # Fallback source: local CSV (for local/manual testing).
     try:
         df = pd.read_csv(STORE_PATH)
         if len(df) > 0:
@@ -608,6 +625,7 @@ def process_csv_batch(df: pd.DataFrame, text_col: str, category_model, urgency_m
 def main():
     st.title("📧 AI Powered Smart Email Classifier")
     st.caption("Real-time email classification, urgency detection, and advanced analytics")
+    st.markdown('<meta http-equiv="refresh" content="5">', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([3, 1, 1])
     with col2:
@@ -618,17 +636,6 @@ def main():
 
     category_model, urgency_model, tfidf_vectorizer = load_models()
     urgency_keywords = load_rule_keywords()
-
-    # Auto-refresh mechanism using Streamlit polling
-    if "last_check" not in st.session_state:
-        st.session_state.last_check = 0
-    
-    # Check for new data every 3 seconds
-    import time
-    current_time = time.time()
-    if current_time - st.session_state.last_check > 3:
-        st.session_state.last_check = current_time
-        st.rerun()
     
     live_df = load_live_data()
     data_df = live_df.copy()

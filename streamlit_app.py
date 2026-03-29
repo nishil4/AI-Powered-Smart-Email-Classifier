@@ -625,12 +625,23 @@ def process_csv_batch(df: pd.DataFrame, text_col: str, category_model, urgency_m
 def main():
     st.title("📧 AI Powered Smart Email Classifier")
     st.caption("Real-time email classification, urgency detection, and advanced analytics")
-    st.markdown('<meta http-equiv="refresh" content="5">', unsafe_allow_html=True)
+        # Disable automatic page refresh
+        # st.markdown('<meta http-equiv="refresh" content="5">', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([3, 1, 1])
     with col2:
         if st.button("🔄 Refresh Now", use_container_width=True):
-            st.rerun()
+                import streamlit.components.v1 as components
+                components.html(
+                    """
+                    <script>
+                    const u = new URL(window.parent.location.href);
+                    u.searchParams.set('refreshTs', Date.now().toString());
+                    window.parent.location.href = u.toString();
+                    </script>
+                    """,
+                    height=0,
+                )
     with col3:
         st.metric("Status", "Live")
 

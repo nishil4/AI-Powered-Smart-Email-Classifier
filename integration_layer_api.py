@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import csv
+import threading
 import warnings
 from datetime import datetime
 from typing import List, Optional
@@ -20,9 +22,12 @@ MODULE2_MODEL_PATH = os.path.join(BASE_DIR, "module2_trained_models", "best_emai
 MODULE3_MODEL_PATH = os.path.join(BASE_DIR, "module3_trained_models", "best_urgency_classifier.pkl")
 TFIDF_PATH = os.path.join(BASE_DIR, "module3_trained_models", "tfidf_vectorizer.pkl")
 RULE_CONFIG_PATH = os.path.join(BASE_DIR, "module3_trained_models", "urgency_rule_config.json")
-STORE_DIR = os.getenv("STORE_DIR", os.path.join(BASE_DIR, "dashboard_data"))
+DEFAULT_STORE_DIR = "/var/data" if os.path.isdir("/var/data") else os.path.join(BASE_DIR, "dashboard_data")
+STORE_DIR = os.getenv("STORE_DIR", DEFAULT_STORE_DIR)
 STORE_PATH = os.path.join(STORE_DIR, "email_predictions_log.csv")
 OUTBOX_DIR = os.path.join(BASE_DIR, "integration_outbox")
+STORE_COLUMNS = ["timestamp", "source", "subject", "email_text", "predicted_category", "predicted_urgency", "technical_category"]
+STORE_LOCK = threading.Lock()
 
 CATEGORY_MAP = {
     "forum": "forum",
@@ -301,32 +306,28 @@ def ensure_store():
     os.makedirs(STORE_DIR, exist_ok=True)
     os.makedirs(OUTBOX_DIR, exist_ok=True)
     if not os.path.exists(STORE_PATH):
-        cols = ["timestamp", "source", "subject", "email_text", "predicted_category", "predicted_urgency", "technical_category"]
-        pd.DataFrame(columns=cols).to_csv(STORE_PATH, index=False)
+        pd.DataFrame(columns=STORE_COLUMNS).to_csv(STORE_PATH, index=False)
 
 
 def append_store(record: dict):
     ensure_store()
-    df = pd.read_csv(STORE_PATH)
-    df = pd.concat([df, pd.DataFrame([record])], ignore_index=True)
-    df.to_csv(STORE_PATH, index=False)
+    row = {col: record.get(col) for col in STORE_COLUMNS}
+    with STORE_LOCK:
+        file_exists = os.path.exists(STORE_PATH)
+        with open(STORE_PATH, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=STORE_COLUMNS)
+            if not file_exists or os.path.getsize(STORE_PATH) == 0:
+                writer.writeheader()
+            writer.writerow(row)
 
 
 def read_store_df() -> pd.DataFrame:
     ensure_store()
     try:
-        return pd.read_csv(STORE_PATH)
+        with STORE_LOCK:
+            return pd.read_csv(STORE_PATH)
     except Exception:
-        cols = [
-            "timestamp",
-            "source",
-            "subject",
-            "email_text",
-            "predicted_category",
-            "predicted_urgency",
-            "technical_category",
-        ]
-        return pd.DataFrame(columns=cols)
+        return pd.DataFrame(columns=STORE_COLUMNS)
 
 
 def route_to_systems(payload: dict, target_systems: List[str], callback_url: Optional[str]):

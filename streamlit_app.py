@@ -747,62 +747,52 @@ def main():
 
             st.divider()
 
-            # 1) Daily volume trend with moving average
-            daily_counts = (
-                analysis_df.dropna(subset=["timestamp_dt"])
-                .assign(date=lambda d: d["timestamp_dt"].dt.date)
-                .groupby("date")
+            # 1) Urgency composition by category (100% stacked)
+            composition = (
+                analysis_df.groupby(["predicted_category", "predicted_urgency"])
                 .size()
                 .reset_index(name="count")
             )
-            if not daily_counts.empty:
-                daily_counts["date"] = pd.to_datetime(daily_counts["date"])
-                daily_counts = daily_counts.sort_values("date")
-                daily_counts["7d_ma"] = daily_counts["count"].rolling(window=7, min_periods=1).mean()
+            if not composition.empty:
+                fig_comp = px.bar(
+                    composition,
+                    x="predicted_category",
+                    y="count",
+                    color="predicted_urgency",
+                    title="Urgency Composition by Category",
+                    labels={
+                        "predicted_category": "Category",
+                        "count": "Email Count",
+                        "predicted_urgency": "Urgency",
+                    },
+                    barmode="relative",
+                    color_discrete_map={"high": "#E15759", "medium": "#F28E2B", "low": "#4E79A7"},
+                )
+                fig_comp.update_layout(legend_title_text="Urgency")
+                st.plotly_chart(fig_comp, use_container_width=True)
 
-                fig_trend = go.Figure()
-                fig_trend.add_trace(
-                    go.Scatter(
-                        x=daily_counts["date"],
-                        y=daily_counts["count"],
-                        mode="lines+markers",
-                        name="Daily Emails",
-                        line=dict(color="#4E79A7", width=2),
-                    )
-                )
-                fig_trend.add_trace(
-                    go.Scatter(
-                        x=daily_counts["date"],
-                        y=daily_counts["7d_ma"],
-                        mode="lines",
-                        name="7-Day Moving Avg",
-                        line=dict(color="#E15759", width=3),
-                    )
-                )
-                fig_trend.update_layout(title="Daily Email Volume Trend", xaxis_title="Date", yaxis_title="Email Count")
-                st.plotly_chart(fig_trend, use_container_width=True)
+            # 2) High-urgency leaderboard by category
+            high_by_cat = (
+                analysis_df.assign(is_high=analysis_df["predicted_urgency"].eq("high"))
+                .groupby("predicted_category", as_index=False)
+                .agg(total=("subject", "count"), high_count=("is_high", "sum"))
+            )
+            if not high_by_cat.empty:
+                high_by_cat["high_rate"] = (high_by_cat["high_count"] / high_by_cat["total"]).fillna(0.0)
+                high_by_cat = high_by_cat.sort_values(["high_count", "high_rate"], ascending=[False, False])
 
-            # 2) Category vs urgency matrix
-            matrix = pd.crosstab(analysis_df["predicted_category"], analysis_df["predicted_urgency"])
-            matrix = matrix.reindex(columns=["high", "medium", "low"], fill_value=0)
-            if not matrix.empty:
-                heat = go.Figure(
-                    data=go.Heatmap(
-                        z=matrix.values,
-                        x=list(matrix.columns),
-                        y=list(matrix.index),
-                        colorscale="YlGnBu",
-                        text=matrix.values,
-                        texttemplate="%{text}",
-                        showscale=True,
-                    )
+                fig_risk = px.bar(
+                    high_by_cat,
+                    x="predicted_category",
+                    y="high_count",
+                    color="high_rate",
+                    title="High-Urgency Load by Category",
+                    labels={"predicted_category": "Category", "high_count": "High-Urgency Emails", "high_rate": "High Rate"},
+                    color_continuous_scale="Reds",
+                    text="high_count",
                 )
-                heat.update_layout(
-                    title="Category vs Urgency Intensity",
-                    xaxis_title="Urgency",
-                    yaxis_title="Category",
-                )
-                st.plotly_chart(heat, use_container_width=True)
+                fig_risk.update_traces(textposition="outside")
+                st.plotly_chart(fig_risk, use_container_width=True)
 
             # 3) Time-pattern analysis
             pcol1, pcol2 = st.columns(2)

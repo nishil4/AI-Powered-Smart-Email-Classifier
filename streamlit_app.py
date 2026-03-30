@@ -66,6 +66,7 @@ IDX_TO_LABEL = {0: "low", 1: "medium", 2: "high"}
 
 # API Configuration
 API_URL = "https://ai-powered-smart-email-classifier-aek7.onrender.com"
+ALLOW_LOCAL_CSV_FALLBACK = os.getenv("ALLOW_LOCAL_CSV_FALLBACK", "false").strip().lower() == "true"
 
 ALL_CATEGORIES = ["forum", "promotions", "social_media", "spam", "updates", "verify_code"]
 ALL_URGENCIES = ["high", "medium", "low"]
@@ -359,6 +360,7 @@ def ensure_store():
 
 def load_live_data():
     ensure_store()
+    base_cols = ["timestamp", "source", "subject", "email_text", "predicted_category", "predicted_urgency", "technical_category"]
 
     # Primary source: integration API (Render), where Gmail ingestion writes records.
     try:
@@ -366,13 +368,17 @@ def load_live_data():
         response.raise_for_status()
         payload = response.json()
         items = payload.get("items", [])
-        if items:
-            df = pd.DataFrame(items)
-            if "timestamp" in df.columns:
-                df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
-            return df
+        df = pd.DataFrame(items) if items else pd.DataFrame(columns=base_cols)
+        if "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        st.session_state["api_fetch_error"] = False
+        return df
     except Exception:
-        pass
+        st.session_state["api_fetch_error"] = True
+
+    if not ALLOW_LOCAL_CSV_FALLBACK:
+        st.warning("Live API data is currently unavailable. Manual local rows are hidden to avoid mixed data.")
+        return pd.DataFrame(columns=base_cols)
 
     # Fallback source: local CSV (for local/manual testing).
     try:
@@ -382,7 +388,7 @@ def load_live_data():
         return df
     except Exception as e:
         st.error(f"Error loading data: {e}")
-        return pd.DataFrame(columns=["timestamp", "source", "subject", "email_text", "predicted_category", "predicted_urgency", "technical_category"])
+        return pd.DataFrame(columns=base_cols)
 
 
 def append_prediction(record: dict):
@@ -692,27 +698,29 @@ def main():
                 st.warning("Please add a subject or body before classifying.")
             else:
                 with st.spinner("Classifying..."):
-                    cleaned = clean_text(full_text)
-                    technical_category = predict_category(cleaned, category_model)
-                    dataset_category = technical_category if technical_category in CATEGORY_MAP else category_rule_fallback(cleaned)
-                    predicted_urgency = predict_urgency(cleaned, technical_category, urgency_model, tfidf_vectorizer, urgency_keywords)
-
-                    record = {
-                        "timestamp": datetime.now().isoformat(timespec="seconds"),
-                        "source": source,
+                    api_payload = {
+                        "source": "Dashboard",
                         "subject": subject if subject else "(no subject)",
-                        "email_text": cleaned,
-                        "predicted_category": dataset_category,
-                        "predicted_urgency": predicted_urgency,
-                        "technical_category": technical_category,
+                        "body": body,
+                        "attachments": [],
+                        "target_systems": [],
+                        "callback_url": None,
                     }
-                    append_prediction(record)
 
-                st.success("Classification complete!")
-                col_a, col_b, col_c = st.columns(3)
-                col_a.metric("Category", dataset_category.upper())
-                col_b.metric("Urgency", predicted_urgency.upper())
-                col_c.metric("Source", source)
+                    try:
+                        response = requests.post(f"{API_URL}/ingest", json=api_payload, timeout=20)
+                        response.raise_for_status()
+                        result = response.json()
+                    except Exception as e:
+                        st.error(f"Classification failed via API: {e}")
+                        result = None
+
+                if result is not None:
+                    st.success("Classification complete!")
+                    col_a, col_b, col_c = st.columns(3)
+                    col_a.metric("Category", str(result.get("predicted_category", "-")).upper())
+                    col_b.metric("Urgency", str(result.get("predicted_urgency", "-")).upper())
+                    col_c.metric("Source", str(result.get("source", "Dashboard")))
 
         st.divider()
         render_analytics(filtered_df)

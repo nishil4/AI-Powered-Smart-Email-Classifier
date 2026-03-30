@@ -20,7 +20,7 @@ MODULE2_MODEL_PATH = os.path.join(BASE_DIR, "module2_trained_models", "best_emai
 MODULE3_MODEL_PATH = os.path.join(BASE_DIR, "module3_trained_models", "best_urgency_classifier.pkl")
 TFIDF_PATH = os.path.join(BASE_DIR, "module3_trained_models", "tfidf_vectorizer.pkl")
 RULE_CONFIG_PATH = os.path.join(BASE_DIR, "module3_trained_models", "urgency_rule_config.json")
-STORE_DIR = os.path.join(BASE_DIR, "dashboard_data")
+STORE_DIR = os.getenv("STORE_DIR", os.path.join(BASE_DIR, "dashboard_data"))
 STORE_PATH = os.path.join(STORE_DIR, "email_predictions_log.csv")
 OUTBOX_DIR = os.path.join(BASE_DIR, "integration_outbox")
 
@@ -361,11 +361,14 @@ urgency_keywords = load_rule_keywords()
 
 @app.get("/health")
 def health():
+    current_count = int(len(read_store_df()))
     return {
         "status": "ok",
         "category_model_loaded": category_model is not None,
         "urgency_model_loaded": urgency_model is not None,
         "tfidf_loaded": tfidf_vectorizer is not None,
+        "record_count": current_count,
+        "store_path": STORE_PATH,
     }
 
 

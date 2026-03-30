@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
 
 st.set_page_config(
     page_title="Smart Email Classifier Dashboard",
-    page_icon="📧",
+    page_icon="E",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -623,14 +623,14 @@ def process_csv_batch(df: pd.DataFrame, text_col: str, category_model, urgency_m
     return out
 
 def main():
-    st.title("📧 AI Powered Smart Email Classifier")
+    st.title("AI Powered Smart Email Classifier")
     st.caption("Real-time email classification, urgency detection, and advanced analytics")
         # Disable automatic page refresh
         # st.markdown('<meta http-equiv="refresh" content="5">', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([3, 1, 1])
     with col2:
-        if st.button("🔄 Refresh Now", use_container_width=True):
+        if st.button("Refresh Now", use_container_width=True):
                 import streamlit.components.v1 as components
                 components.html(
                     """
@@ -658,17 +658,17 @@ def main():
     filtered_df = apply_filters(data_df)
     
     if len(filtered_df) > 0:
-        st.success(f"✨ Loaded {len(filtered_df)} classifications")
+        st.success(f"Loaded {len(filtered_df)} classifications")
     else:
-        st.info("⏳ Awaiting Gmail classifications from Apps Script...")
+        st.info("Awaiting Gmail classifications from Apps Script...")
 
     # Create tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "🏠 Live Dashboard",
-        "📊 Analysis",
-        "📈 Advanced Visualization",
-        "🔍 Detailed Stats",
-        "📤 Batch Processing"
+        "Live Dashboard",
+        "Analysis",
+        "Advanced Visualization",
+        "Detailed Stats",
+        "Batch Processing"
     ])
 
     # ========== TAB 1: LIVE DASHBOARD ==========
@@ -684,12 +684,12 @@ def main():
             
             subject = st.text_input("Subject", placeholder="e.g., Payment failed after update")
             body = st.text_area("Email Body", height=150, placeholder="Paste email content here...")
-            submit = st.form_submit_button("🔍 Classify Email", use_container_width=True)
+            submit = st.form_submit_button("Classify Email", use_container_width=True)
 
         if submit:
             full_text = f"{subject}. {body}".strip()
             if len(full_text.strip()) < 3:
-                st.warning("⚠️ Please add a subject or body before classifying.")
+                st.warning("Please add a subject or body before classifying.")
             else:
                 with st.spinner("Classifying..."):
                     cleaned = clean_text(full_text)
@@ -708,11 +708,11 @@ def main():
                     }
                     append_prediction(record)
 
-                st.success("✅ Classification complete!")
+                st.success("Classification complete!")
                 col_a, col_b, col_c = st.columns(3)
-                col_a.metric("📁 Category", dataset_category.upper())
-                col_b.metric("⚡ Urgency", predicted_urgency.upper())
-                col_c.metric("📧 Source", source)
+                col_a.metric("Category", dataset_category.upper())
+                col_b.metric("Urgency", predicted_urgency.upper())
+                col_c.metric("Source", source)
 
         st.divider()
         render_analytics(filtered_df)
@@ -792,7 +792,7 @@ def main():
             # Download full filtered results
             csv_data = filtered_df.to_csv(index=False).encode("utf-8")
             st.download_button(
-                label="📥 Download All Filtered Results (CSV)",
+                label="Download All Filtered Results (CSV)",
                 data=csv_data,
                 file_name=f"email_classifications_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
                 mime="text/csv",
@@ -804,13 +804,13 @@ def main():
         st.subheader("Batch Process CSV Data")
         st.markdown("Upload a CSV file containing email text and automatically classify all rows.")
         
-        uploaded_file = st.file_uploader("📤 Choose CSV file", type=["csv"])
+        uploaded_file = st.file_uploader("Choose CSV file", type=["csv"])
         
         if uploaded_file is not None:
             try:
                 upload_df = pd.read_csv(uploaded_file)
             except Exception as e:
-                st.error(f"❌ Could not read file: {e}")
+                st.error(f"Could not read file: {e}")
                 return
 
             if upload_df.empty:
@@ -826,9 +826,9 @@ def main():
                 (c for c in text_columns if c.lower() in ["text", "body", "email", "message", "content", "email_text"]),
                 text_columns[0]
             )
-            text_col = st.selectbox("📝 Which column contains email text?", options=text_columns, index=text_columns.index(guessed))
+            text_col = st.selectbox("Which column contains email text?", options=text_columns, index=text_columns.index(guessed))
 
-            if st.button("🚀 Classify All Rows", use_container_width=True):
+            if st.button("Classify All Rows", use_container_width=True):
                 with st.spinner("Processing..."):
                     result_df = process_csv_batch(
                         upload_df,
@@ -839,7 +839,7 @@ def main():
                         urgency_keywords
                     )
 
-                st.success(f"✅ Processed {len(result_df):,} rows successfully!")
+                st.success(f"Processed {len(result_df):,} rows successfully!")
 
                 # Results metrics
                 res_col1, res_col2, res_col3, res_col4 = st.columns(4)
@@ -872,7 +872,7 @@ def main():
                 # Download button
                 csv_out = result_df.to_csv(index=False).encode("utf-8")
                 st.download_button(
-                    label="📥 Download Results as CSV",
+                    label="Download Results as CSV",
                     data=csv_out,
                     file_name=f"classified_{uploaded_file.name}",
                     mime="text/csv",

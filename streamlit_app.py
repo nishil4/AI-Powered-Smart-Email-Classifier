@@ -727,42 +727,124 @@ def main():
         if filtered_df.empty:
             st.info("No data to analyze. Run classifications or upload data to populate.")
         else:
-            # Quick metrics
+            analysis_df = filtered_df.copy()
+            analysis_df["timestamp_dt"] = pd.to_datetime(analysis_df["timestamp"], errors="coerce")
+
+            # KPI row focused on trend and density
+            total_count = len(analysis_df)
+            high_count = int((analysis_df["predicted_urgency"] == "high").sum())
+            high_pct = (high_count / total_count * 100.0) if total_count else 0.0
+            active_categories = int(analysis_df["predicted_category"].nunique())
+            valid_ts = analysis_df["timestamp_dt"].dropna()
+            span_days = max(1, ((valid_ts.max() - valid_ts.min()).days + 1) if not valid_ts.empty else 1)
+            avg_per_day = total_count / span_days
+
             col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Total Emails", f"{len(filtered_df):,}")
-            col2.metric("High Urgency", int((filtered_df["predicted_urgency"] == "high").sum()))
-            col3.metric("Medium Urgency", int((filtered_df["predicted_urgency"] == "medium").sum()))
-            col4.metric("Low Urgency", int((filtered_df["predicted_urgency"] == "low").sum()))
-            
+            col1.metric("Total Emails", f"{total_count:,}")
+            col2.metric("High Urgency Rate", f"{high_pct:.1f}%")
+            col3.metric("Active Categories", active_categories)
+            col4.metric("Avg per Day", f"{avg_per_day:.1f}")
+
             st.divider()
-            
-            # Category and Urgency charts
-            acol1, acol2 = st.columns(2)
-            
-            with acol1:
-                cat_counts = filtered_df["predicted_category"].value_counts().reset_index()
-                cat_counts.columns = ["category", "count"]
-                fig_cat = px.bar(
-                    cat_counts,
-                    x="category",
+
+            # 1) Daily volume trend with moving average
+            daily_counts = (
+                analysis_df.dropna(subset=["timestamp_dt"])
+                .assign(date=lambda d: d["timestamp_dt"].dt.date)
+                .groupby("date")
+                .size()
+                .reset_index(name="count")
+            )
+            if not daily_counts.empty:
+                daily_counts["date"] = pd.to_datetime(daily_counts["date"])
+                daily_counts = daily_counts.sort_values("date")
+                daily_counts["7d_ma"] = daily_counts["count"].rolling(window=7, min_periods=1).mean()
+
+                fig_trend = go.Figure()
+                fig_trend.add_trace(
+                    go.Scatter(
+                        x=daily_counts["date"],
+                        y=daily_counts["count"],
+                        mode="lines+markers",
+                        name="Daily Emails",
+                        line=dict(color="#4E79A7", width=2),
+                    )
+                )
+                fig_trend.add_trace(
+                    go.Scatter(
+                        x=daily_counts["date"],
+                        y=daily_counts["7d_ma"],
+                        mode="lines",
+                        name="7-Day Moving Avg",
+                        line=dict(color="#E15759", width=3),
+                    )
+                )
+                fig_trend.update_layout(title="Daily Email Volume Trend", xaxis_title="Date", yaxis_title="Email Count")
+                st.plotly_chart(fig_trend, use_container_width=True)
+
+            # 2) Category vs urgency matrix
+            matrix = pd.crosstab(analysis_df["predicted_category"], analysis_df["predicted_urgency"])
+            matrix = matrix.reindex(columns=["high", "medium", "low"], fill_value=0)
+            if not matrix.empty:
+                heat = go.Figure(
+                    data=go.Heatmap(
+                        z=matrix.values,
+                        x=list(matrix.columns),
+                        y=list(matrix.index),
+                        colorscale="YlGnBu",
+                        text=matrix.values,
+                        texttemplate="%{text}",
+                        showscale=True,
+                    )
+                )
+                heat.update_layout(
+                    title="Category vs Urgency Intensity",
+                    xaxis_title="Urgency",
+                    yaxis_title="Category",
+                )
+                st.plotly_chart(heat, use_container_width=True)
+
+            # 3) Time-pattern analysis
+            pcol1, pcol2 = st.columns(2)
+            with pcol1:
+                weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                weekday_counts = (
+                    analysis_df.dropna(subset=["timestamp_dt"])
+                    .assign(weekday=lambda d: d["timestamp_dt"].dt.day_name())
+                    .groupby("weekday")
+                    .size()
+                    .reindex(weekday_order, fill_value=0)
+                    .reset_index(name="count")
+                )
+                fig_weekday = px.bar(
+                    weekday_counts,
+                    x="weekday",
                     y="count",
-                    title="Emails by Category",
-                    color="category",
-                    labels={"count": "Count", "category": "Category"}
+                    title="Emails by Day of Week",
+                    labels={"weekday": "Day", "count": "Email Count"},
+                    color="count",
+                    color_continuous_scale="Blues",
                 )
-                st.plotly_chart(fig_cat, use_container_width=True)
-            
-            with acol2:
-                urg_counts = filtered_df["predicted_urgency"].value_counts().reset_index()
-                urg_counts.columns = ["urgency", "count"]
-                fig_urg = px.pie(
-                    urg_counts,
-                    names="urgency",
-                    values="count",
-                    title="Urgency Distribution",
-                    color_discrete_map={"high": "#FF6B6B", "medium": "#FFA500", "low": "#4ECDC4"}
+                st.plotly_chart(fig_weekday, use_container_width=True)
+
+            with pcol2:
+                hour_counts = (
+                    analysis_df.dropna(subset=["timestamp_dt"])
+                    .assign(hour=lambda d: d["timestamp_dt"].dt.hour)
+                    .groupby("hour")
+                    .size()
+                    .reindex(range(24), fill_value=0)
+                    .reset_index(name="count")
                 )
-                st.plotly_chart(fig_urg, use_container_width=True)
+                fig_hour = px.line(
+                    hour_counts,
+                    x="hour",
+                    y="count",
+                    markers=True,
+                    title="Hourly Email Arrival Pattern",
+                    labels={"hour": "Hour of Day", "count": "Email Count"},
+                )
+                st.plotly_chart(fig_hour, use_container_width=True)
 
     # ========== TAB 3: ADVANCED VISUALIZATION ==========
     with tab3:

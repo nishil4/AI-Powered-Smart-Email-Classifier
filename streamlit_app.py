@@ -380,7 +380,7 @@ def load_live_data():
         st.warning("Live API data is currently unavailable. Manual local rows are hidden to avoid mixed data.")
         return pd.DataFrame(columns=base_cols)
 
-    # Fallback source: local CSV (for local/manual testing).
+    # Fallback source: local CSV (for manual testing).
     try:
         df = pd.read_csv(STORE_PATH)
         if len(df) > 0:
@@ -626,8 +626,6 @@ def process_csv_batch(df: pd.DataFrame, text_col: str, category_model, urgency_m
 def main():
     st.title("AI Powered Smart Email Classifier")
     st.caption("Real-time email classification, urgency detection, and advanced analytics")
-        # Disable automatic page refresh
-        # st.markdown('<meta http-equiv="refresh" content="5">', unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([3, 1, 1])
     with col2:
@@ -672,7 +670,7 @@ def main():
         "Batch Processing"
     ])
 
-    # ========== TAB 1: LIVE DASHBOARD ==========
+    # TAB 1: LIVE DASHBOARD
     with tab1:
         st.subheader("Live Email Classifier")
         st.markdown("Classify emails in real-time. Emails are automatically ingested from Gmail every 5 minutes.")
@@ -720,7 +718,7 @@ def main():
         st.divider()
         render_analytics(filtered_df)
 
-    # ========== TAB 2: ANALYSIS ==========
+    # TAB 2: ANALYSIS
     with tab2:
         st.subheader("Analytics Overview")
         
@@ -747,7 +745,7 @@ def main():
 
             st.divider()
 
-            # 1) Urgency composition by category (100% stacked)
+            # 1) Urgency composition by category (stacked)
             composition = (
                 analysis_df.groupby(["predicted_category", "predicted_urgency"])
                 .size()
@@ -836,7 +834,7 @@ def main():
                 )
                 st.plotly_chart(fig_hour, use_container_width=True)
 
-    # ========== TAB 3: ADVANCED VISUALIZATION ==========
+    # TAB 3: ADVANCED VISUALIZATION
     with tab3:
         st.subheader("Advanced Data Visualization")
         
@@ -845,7 +843,7 @@ def main():
         else:
             render_advanced_visualizations(filtered_df)
 
-    # ========== TAB 4: DETAILED STATS ==========
+    # TAB 4: DETAILED STATS
     with tab4:
         st.subheader("Detailed Statistics & Insights")
         
@@ -874,7 +872,7 @@ def main():
                 use_container_width=True
             )
 
-    # ========== TAB 5: BATCH PROCESSING ==========
+    # TAB 5: BATCH PROCESSING
     with tab5:
         st.subheader("Batch Process CSV Data")
         st.markdown("Upload a CSV file containing email text and automatically classify all rows.")

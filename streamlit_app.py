@@ -573,11 +573,6 @@ def render_detailed_analysis(df: pd.DataFrame):
         "subject": "count"
     }).rename(columns={"subject": "Count"})
     st.dataframe(urg_stats, use_container_width=True)
-    
-    st.markdown("### Top Email Sources")
-    source_stats = df["source"].value_counts().reset_index()
-    source_stats.columns = ["Source", "Count"]
-    st.dataframe(source_stats, use_container_width=True)
 
 def render_analytics(df: pd.DataFrame):
     """Render quick analytics with key metrics and charts"""
